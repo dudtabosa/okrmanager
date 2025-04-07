@@ -1,0 +1,115 @@
+{% extends 'myapp/layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - OKR Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ okr.descricao }}</h4>
+                    <small>{{ okr.time.nome }} - {{ okr.time.diretoria.nome }}</small>
+                </div>
+                
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% for kr in okr.key_results.all %}
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">{{ kr.descricao }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="valor_atual_{{ kr.id }}" class="form-label">
+                                        Valor Atual
+                                        {% if kr.tipo_valor == 'reais' %}
+                                            (em R$)
+                                        {% elif kr.tipo_valor == 'porcentagem' %}
+                                            (em %)
+                                        {% else %}
+                                            (em número)
+                                        {% endif %}
+                                    </label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="valor_atual_{{ kr.id }}" 
+                                           name="valor_atual_{{ kr.id }}"
+                                           step="{% if kr.tipo_valor == 'reais' %}0.01{% else %}0.1{% endif %}"
+                                           min="0"
+                                           max="{% if kr.tipo_valor == 'porcentagem' %}100{% else %}{{ kr.valor_target }}{% endif %}"
+                                           required>
+                                    <div class="form-text">
+                                        Meta: 
+                                        {% if kr.tipo_valor == 'reais' %}
+                                            R$ {{ kr.valor_target|floatformat:2|intcomma }}
+                                        {% elif kr.tipo_valor == 'porcentagem' %}
+                                            {{ kr.valor_target }}%
+                                        {% else %}
+                                            {{ kr.valor_target }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'myapp:all_goals' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Salvar Resultados
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .card-header {
+        border-radius: 10px 10px 0 0 !important;
+    }
+    
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    
+    .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 5px;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0069d9;
+        border-color: #0062cc;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+    }
+</style>
+{% endblock %} 

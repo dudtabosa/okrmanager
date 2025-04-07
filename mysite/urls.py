@@ -16,14 +16,16 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include
+from django.shortcuts import redirect
 
 from myapp.views.register import RegisterView
 
+def redirect_to_myapp(request):
+    return redirect('myapp:home')
+
 urlpatterns = [
+    path('', redirect_to_myapp),  # Redireciona a raiz para /myapp/
     path('myapp/', include('myapp.urls')),
     path('admin/', admin.site.urls),
-    path('login/', auth_views.LoginView.as_view(template_name='myapp/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='myapp:home')),
     path('register/', RegisterView.as_view(), name='register'),
-    path('', include('django.contrib.auth.urls'))
 ]

@@ -1,31 +1,156 @@
-{% extends "myapp/base.html" %}
+{% extends 'myapp/layouts/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Meu Dashboard anual{% endblock %}
+
+{% block page_title %}Bem-vindo(a), {{ request.user.first_name }}! 👋{% endblock %}
 
 {% block content %}
-    <div class="container">
-
-        <!-- Show this section only for User Items view -->
-        {% if first_name or last_name %}
-            <div class="jumbotron">
-                <h1>{{ first_name }} {{ last_name }} - My App</h1>
+<div class="container-fluid">
+    <!-- Resumo de Progresso -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Progresso Geral</h6>
+                    <h2 class="card-title">{{ progresso_geral|floatformat:1 }}%</h2>
+                </div>
             </div>
-        {% endif %}
-
-        <!-- Pagination -->
-        <div class="pagination">
-            {% if items.has_previous %}
-                <a href="?page=1">&laquo; first</a>
-                <a href="?page={{ items.previous_page_number }}">previous</a>
-            {% endif %}
-
-            {% if items.paginator.num_pages != 1 %}
-                Page {{ items.number }} of {{ items.paginator.num_pages }}.
-            {% endif %}
-
-            {% if items.has_next %}
-                <a href="?page={{ items.next_page_number }}">next</a>
-                <a href="?page={{ items.paginator.num_pages }}">last &raquo;</a>
-            {% endif %}
         </div>
-
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h6 class="card-subtitle mb-2 text-muted">OKRs Ativos</h6>
+                    <h2 class="card-title">{{ total_okrs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h6 class="card-subtitle mb-2 text-muted">Times</h6>
+                    <h2 class="card-title">{{ total_times }}</h2>
+                </div>
+            </div>
+        </div>
     </div>
-{% endblock content %}
+
+    <!-- Gráfico de Progresso -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Evolução Trimestral</h5>
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de OKRs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="section-title">Meus OKRs</h5>
+                <div>
+                    <a href="{% url 'myapp:all_goals' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Adicionar Resultado
+                    </a>
+                </div>
+            </div>
+
+            {% for okr in okrs %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">{{ okr.descricao }}</h5>
+                            <p class="text-muted mb-0">{{ okr.time.nome }} - {{ okr.time.diretoria.nome }}</p>
+                        </div>
+                        <span class="badge bg-primary">{{ okr.ano }}</span>
+                    </div>
+
+                    <p class="card-text">
+                        <strong>Progresso Geral:</strong> {{ okr.progresso_geral|floatformat:1 }}%
+                    </p>
+
+                    {% for kr in okr.key_results.all %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <p class="mb-0">{{ kr.descricao }}</p>
+                            <div>
+                                <span class="badge {% if kr.progresso_atual < 50 %}bg-danger{% elif kr.progresso_atual > 100 %}bg-warning{% else %}bg-primary{% endif %}">
+                                    {{ kr.progresso_atual|floatformat:1 }}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <p class="mb-0">Você ainda não tem OKRs cadastrados.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Configuração do gráfico de progresso
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ labels|safe }},
+            datasets: [
+                {
+                    label: 'Meta',
+                    data: [100, 100, 100, 100],  // Metas são sempre 100%
+                    borderColor: '#ff6b00',
+                    backgroundColor: '#ff6b00',
+                    tension: 0.4,
+                    fill: false
+                },
+                {
+                    label: 'Resultado Atual',
+                    data: {{ dados_progresso|safe }},
+                    borderColor: '#0d6efd',
+                    backgroundColor: '#0d6efd',
+                    tension: 0.4,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20,
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

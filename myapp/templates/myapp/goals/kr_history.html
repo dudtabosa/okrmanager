@@ -1,0 +1,125 @@
+{% extends 'myapp/layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Histórico do KR - OKR Manager{% endblock %}
+
+{% block content %}
+<style>
+.bg-orange {
+    background-color: #d75413 !important;
+}
+</style>
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'myapp:all_goals' %}">Todos os OKRs</a></li>
+            <li class="breadcrumb-item active">Histórico do KR</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ kr.descricao }}</h5>
+            <h6 class="card-subtitle mb-3 text-muted">
+                {{ kr.objetivo.time.nome }} - {{ kr.objetivo.time.diretoria.nome }}
+            </h6>
+            
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Meta</h6>
+                            <h4 class="card-title">
+                                {% if kr.tipo_valor == 'MOEDA' %}
+                                    R$ {{ kr.valor_target|floatformat:2|intcomma }}
+                                {% elif kr.tipo_valor == 'PORC' %}
+                                    {{ kr.valor_target|floatformat:1 }}%
+                                {% else %}
+                                    {{ kr.valor_target|floatformat:1 }}
+                                {% endif %}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Último Valor</h6>
+                            <h4 class="card-title">
+                                {% if kr.tipo_valor == 'MOEDA' %}
+                                    R$ {{ ultimo_valor|floatformat:2|intcomma }}
+                                {% elif kr.tipo_valor == 'PORC' %}
+                                    {{ ultimo_valor|floatformat:1 }}%
+                                {% else %}
+                                    {{ ultimo_valor|floatformat:1 }}
+                                {% endif %}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Progresso</h6>
+                            <h4 class="card-title">
+                                <span class="badge {% if progresso_atual > 100 %}bg-orange{% elif progresso_atual < 50 %}bg-danger{% else %}bg-primary{% endif %}">
+                                    {{ progresso_atual|floatformat:1 }}%
+                                </span>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="mb-3">Histórico de Atualizações</h6>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Trimestre</th>
+                            <th>Valor</th>
+                            <th>Progresso</th>
+                            <th>Atualizado por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for progresso in historico %}
+                            <tr>
+                                <td>{{ progresso.data_atualizacao|date:"d/m/Y H:i" }}</td>
+                                <td>{{ progresso.get_trimestre_display }}</td>
+                                <td>
+                                    {% if kr.tipo_valor == 'MOEDA' %}
+                                        R$ {{ progresso.valor_atual|floatformat:2|intcomma }}
+                                    {% elif kr.tipo_valor == 'PORC' %}
+                                        {{ progresso.valor_atual|floatformat:1 }}%
+                                    {% else %}
+                                        {{ progresso.valor_atual|floatformat:1 }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if progresso.progresso > 100 %}bg-orange{% elif progresso.progresso < 50 %}bg-danger{% else %}bg-primary{% endif %}">
+                                        {{ progresso.progresso|floatformat:1 }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if progresso.atualizado_por %}
+                                        {{ progresso.atualizado_por.get_full_name|default:progresso.atualizado_por.username }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">Nenhuma atualização registrada.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

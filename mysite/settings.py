@@ -31,13 +31,15 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'myapp.apps.MyAppConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',  # Adicionado para formatação de números
+    'myapp',
+    'okrs',  # Novo app para gestão de OKRs
 ]
 
 MIDDLEWARE = [
@@ -104,7 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
 TIME_ZONE = 'UTC'
 
@@ -120,4 +122,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-ACCOUNT_LOGOUT_REDIRECT_URL = "/myapp"
+# Configurações de autenticação
+LOGIN_REDIRECT_URL = '/myapp/'  # Redireciona para a home após o login
+LOGIN_URL = '/myapp/login/'  # URL da página de login
+LOGOUT_REDIRECT_URL = '/myapp/login/'  # Redireciona para o login após o logout
