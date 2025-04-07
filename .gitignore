@@ -160,3 +160,46 @@ venv.bak/
 *.iml
 
 *.sqlite3
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.swp
+
+# Ambiente de desenvolvimento
+.env.local
+.env.*.local
+
+# Arquivos de cache
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Arquivos de mídia e estáticos coletados
+/static/
+/media/
+
+# Arquivos de backup
+*.bak
+*~

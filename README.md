@@ -1,136 +1,107 @@
-# Django Template
+# OKR Manager
 
-## About
+Sistema de gerenciamento de OKRs (Objectives and Key Results) desenvolvido em Django.
 
-This is a demo project for practicing Django.
+## 📋 Sobre o Projeto
 
-It was made using **Python 3.6** + **Django** and database is **SQLite**.
-**Bootstrap** was used for styling.
-Testing is done using **untitest** module.
+O OKR Manager é uma aplicação web para gerenciamento de Objetivos e Resultados-Chave (OKRs) que permite:
 
-There is a login and registration functionality included.
+- Acompanhamento de objetivos por times
+- Monitoramento de progresso trimestral e anual
+- Dashboard com visão geral do desempenho
+- Gestão de KRs (Key Results) com metas trimestrais e anuais
+- Registro histórico de progressos
 
-App is covered with tests.
+## 🚀 Funcionalidades
 
-## Prerequisites
+- **Dashboard Anual**: Visualização do progresso geral e por trimestre
+- **Gestão de Times**: Organização de OKRs por equipes
+- **Controle de Objetivos**: Cadastro e acompanhamento de objetivos
+- **Gestão de KRs**: Registro e atualização de resultados-chave
+- **Histórico de Progressos**: Acompanhamento da evolução dos KRs
+- **Interface Administrativa**: Painel admin para gestão completa dos dados
 
-\[Optional\] Install virtual environment:
+## 🛠️ Tecnologias Utilizadas
 
+- Python
+- Django
+- SQLite
+- HTML/CSS
+- JavaScript
+- Bootstrap
+
+## ⚙️ Configuração do Ambiente
+
+1. Clone o repositório:
 ```bash
-$ python -m virtualenv env
+git clone https://github.com/dudtabosa/okrmanager.git
+cd okrmanager
 ```
 
-\[Optional\] Activate virtual environment:
-
-On macOS and Linux:
+2. Crie e ative um ambiente virtual:
 ```bash
-$ source env/bin/activate
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\\Scripts\\activate  # Windows
 ```
 
-On Windows:
+3. Instale as dependências:
 ```bash
-$ .\env\Scripts\activate
+pip install -r requirements.txt
 ```
 
-Install dependencies:
+4. Execute as migrações:
 ```bash
-$ pip install -r requirements.txt
+python manage.py migrate
 ```
 
-## How to run
-
-### Default
-
-You can run the application from the command line with manage.py.
-Go to the root folder of the application.
-
-Run migrations:
+5. Crie um superusuário:
 ```bash
-$ python manage.py migrate
+python manage.py createsuperuser
 ```
 
-Initialize data:
+6. Inicie o servidor:
 ```bash
-$ python manage.py loaddata users
+python manage.py runserver
 ```
 
-Run server on port 8000:
-```bash
-$ python manage.py runserver 8000
-```
+## 📊 Estrutura do Projeto
 
-#### Helper script
+- `myapp/`: Aplicação principal
+  - `templates/`: Templates HTML
+  - `static/`: Arquivos estáticos (CSS, JS)
+  - `views/`: Views da aplicação
+- `okrs/`: App de gestão de OKRs
+  - `models.py`: Modelos de dados
+  - `admin.py`: Configuração do admin
+  - `views.py`: Views específicas de OKRs
 
-It is possible to run all of the above with helper script:
+## 👥 Modelos de Dados
 
-```bash
-$ chmod +x scripts/run.sh
-$ scripts/run.sh
-```
+- **Diretoria**: Gestão de diretorias/departamentos
+- **Time**: Equipes vinculadas às diretorias
+- **Objetivo**: Objetivos vinculados aos times
+- **KeyResult**: Resultados-chave vinculados aos objetivos
+- **KeyResultProgresso**: Registro de progresso dos KRs
 
-### Docker
+## 📈 Métricas e Cálculos
 
-It is also possible to run the myapp app using docker:
+- Progresso anual por KR
+- Progresso geral por OKR
+- Média trimestral de progresso
+- Progresso geral da organização
 
-Build the Docker image:
-```bash
-$ docker build -t reljicd/django-myapp -f docker\Dockerfile .
-```
+## 🔐 Acesso ao Sistema
 
-Run the Docker container:
-```bash
-$ docker run --rm -i -p 8000:8000 reljicd/django-myapp
-```
+- URL Admin: `/admin/`
+- Dashboard: `/myapp/`
+- Meus Objetivos: `/myapp/all-goals/`
+- OKRs OPAH: `/myapp/opah-okrs/`
 
-#### Helper script
+## 📝 Licença
 
-It is possible to run all of the above with helper script:
+Este projeto está sob a licença MIT.
 
-```bash
-$ chmod +x scripts/run_docker.sh
-$ scripts/run_docker.sh
-```
+## 👤 Autor
 
-## Post Installation
-
-Go to the web browser and visit `http://localhost:8000/home`
-
-Admin username: **admin**
-
-Admin password: **adminpassword**
-
-User username: **dusan**
-
-User password: **dusanpassword**
-
-## Helper Tools
-
-### Django Admin
-
-It is possible to add additional admin user who can login to the admin site. Run the following command:
-```bash
-$ python manage.py createsuperuser
-```
-Enter your desired username and press enter.
-```bash
-Username: admin_username
-```
-You will then be prompted for your desired email address:
-```bash
-Email address: admin@example.com
-```
-The final step is to enter your password. You will be asked to enter your password twice, the second time as a confirmation of the first.
-```
-Password: **********
-Password (again): *********
-Superuser created successfully.
-```
-
-Go to the web browser and visit `http://localhost:8000/admin`
-
-### Tests
-
-Running tests:
-```bash
-$ python manage.py test myapp
-```
+Carlos Eduardo Silva Tabosa
