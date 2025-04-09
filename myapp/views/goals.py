@@ -1,12 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from okrs.models import Objetivo, KeyResultProgresso, Time, TipoValor, KeyResult
+from okrs.models import Objetivo, KeyResultProgresso, Time, TipoValor, KeyResult, Diretoria
 from decimal import Decimal
 import logging
 from django.contrib import messages
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.humanize.templatetags.humanize import intcomma
+from django.db.models import Avg, Count
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,7 @@ def all_goals(request):
             total_progresso = 0
             total_krs = 0
             
+            # Itera sobre todos os KRs
             for kr in okr.key_results.all():
                 # Filtra o progresso baseado no período selecionado
                 if periodo == 'ano':
@@ -263,4 +265,122 @@ def add_result(request, okr_id):
     except Exception as e:
         logger.error(f"Erro em add_result: {str(e)}", exc_info=True)
         messages.error(request, f'Erro ao carregar formulário: {str(e)}')
-        return redirect('myapp:all_goals') 
+        return redirect('myapp:all_goals')
+
+def dashboard_geral(request):
+    # Ano fixo em 2025
+    ano = '2025'
+    
+    # Obter o trimestre selecionado
+    trimestre = request.GET.get('trimestre', 'ano')
+    
+    # Obter todas as diretorias
+    diretorias = Diretoria.objects.all()
+    
+    # Preparar dados para os gráficos
+    diretorias_nomes = []
+    diretorias_progresso = []
+    evolucao_trimestral = [0, 0, 0, 0]
+    
+    for diretoria in diretorias:
+        # Progresso por diretoria
+        diretorias_nomes.append(diretoria.nome)
+        
+        # Calcula o progresso da diretoria
+        if trimestre == 'ano':
+            # Para o ano todo, calcula a média dos 4 trimestres
+            progresso_trimestres = []
+            for t in range(1, 5):
+                progresso = diretoria.calcular_progresso_geral(ano, str(t))
+                progresso_trimestres.append(progresso)
+                evolucao_trimestral[t-1] += progresso
+            diretoria.progresso_atual = sum(progresso_trimestres) / len(progresso_trimestres)
+        else:
+            # Para trimestres específicos
+            diretoria.progresso_atual = diretoria.calcular_progresso_geral(ano, trimestre)
+            for t in range(1, 5):
+                evolucao_trimestral[t-1] += diretoria.calcular_progresso_geral(ano, str(t))
+        
+        diretorias_progresso.append(diretoria.progresso_atual)
+        
+        # Dados dos times por diretoria
+        times = Time.objects.filter(diretoria=diretoria)
+        diretoria.times_nomes = [time.nome for time in times]
+        
+        # Calcula o progresso dos times
+        diretoria.times_progresso = []
+        for time in times:
+            # Obtém todos os KRs ativos do time
+            krs = KeyResult.objects.filter(
+                objetivo__time=time,
+                objetivo__ano=ano,
+                objetivo__ativo=True,
+                ativo=True
+            ).prefetch_related('progressos')
+            
+            total_progresso = 0
+            total_krs = 0
+            
+            for kr in krs:
+                if trimestre == 'ano':
+                    # Para o ano todo, calcula a média dos 4 trimestres
+                    progresso_trimestres = []
+                    for t in range(1, 5):
+                        progresso = kr.progressos.filter(trimestre=str(t)).order_by('-data_atualizacao').first()
+                        if progresso:
+                            valor_atual = Decimal(str(progresso.valor_atual))
+                            valor_target = Decimal(str(kr.valor_target))
+                            
+                            if kr.tipo_valor == TipoValor.PORCENTAGEM:
+                                progresso_kr = float(valor_atual)
+                            else:
+                                progresso_kr = float((valor_atual / valor_target) * 100)
+                        else:
+                            progresso_kr = 0
+                        progresso_trimestres.append(progresso_kr)
+                    
+                    # Calcula a média dos trimestres
+                    progresso_kr = sum(progresso_trimestres) / len(progresso_trimestres)
+                else:
+                    # Para trimestres específicos, pega o progresso do trimestre
+                    progresso = kr.progressos.filter(trimestre=trimestre).order_by('-data_atualizacao').first()
+                    if progresso:
+                        valor_atual = Decimal(str(progresso.valor_atual))
+                        valor_target = Decimal(str(kr.valor_target))
+                        
+                        if kr.tipo_valor == TipoValor.PORCENTAGEM:
+                            progresso_kr = float(valor_atual)
+                        else:
+                            progresso_kr = float((valor_atual / valor_target) * 100)
+                    else:
+                        progresso_kr = 0
+                
+                total_progresso += progresso_kr
+                total_krs += 1
+            
+            time_progresso = round(total_progresso / total_krs, 1) if total_krs > 0 else 0
+            diretoria.times_progresso.append(time_progresso)
+        
+        # Conta o total de KRs ativos da diretoria
+        diretoria.total_okrs = KeyResult.objects.filter(
+            objetivo__time__diretoria=diretoria,
+            objetivo__ano=ano,
+            objetivo__ativo=True,
+            ativo=True
+        ).count()
+    
+    # Calcular média da evolução trimestral
+    if diretorias:
+        evolucao_trimestral = [round(x / len(diretorias), 1) for x in evolucao_trimestral]
+    
+    context = {
+        'diretorias': diretorias,
+        'diretorias_nomes': diretorias_nomes,
+        'diretorias_progresso': diretorias_progresso,
+        'evolucao_trimestral': evolucao_trimestral,
+        'ano': ano,
+        'trimestre': trimestre,
+        'page_title': 'Dashboard Geral'
+    }
+    
+    return render(request, 'myapp/dashboard_geral.html', context) 

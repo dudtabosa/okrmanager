@@ -1,8 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal
+import logging
+from django.utils import timezone
 
 # Create your models here.
+
+logger = logging.getLogger(__name__)
 
 class TipoValor(models.TextChoices):
     INTEIRO = 'INT', 'Número Inteiro'
@@ -24,6 +28,46 @@ class Diretoria(models.Model):
     def __str__(self):
         return self.nome
 
+    def calcular_progresso_geral(self, ano=None, trimestre=None):
+        """
+        Calcula o progresso geral da diretoria para um ano e trimestre específicos.
+        Se não for especificado um trimestre, calcula para o ano todo.
+        """
+        if not ano:
+            return 0
+        
+        times = self.times.all()
+        total_progresso = 0
+        total_okrs = 0
+        
+        for time in times:
+            okrs = time.objetivos.filter(ano=ano)
+            for okr in okrs:
+                krs = okr.key_results.filter(ativo=True)
+                if krs.exists():
+                    for kr in krs:
+                        # Obtém o progresso do trimestre específico
+                        if trimestre:
+                            progresso = kr.progressos.filter(trimestre=trimestre).order_by('-data_atualizacao').first()
+                        else:
+                            progresso = kr.progressos.order_by('-data_atualizacao').first()
+                        
+                        if progresso:
+                            valor_atual = Decimal(str(progresso.valor_atual))
+                            valor_target = Decimal(str(kr.valor_target))
+                            
+                            if kr.tipo_valor == TipoValor.PORCENTAGEM:
+                                progresso_kr = float(valor_atual)
+                            else:
+                                progresso_kr = float((valor_atual / valor_target) * 100)
+                            
+                            total_progresso += progresso_kr
+                            total_okrs += 1
+        
+        if total_okrs > 0:
+            return total_progresso / total_okrs
+        return 0
+
 class Time(models.Model):
     nome = models.CharField(max_length=100, verbose_name='Nome do Time')
     descricao = models.TextField(verbose_name='Descrição', blank=True, null=True)
@@ -39,6 +83,52 @@ class Time(models.Model):
 
     def __str__(self):
         return f"{self.nome} - {self.diretoria.nome}"
+
+    def calcular_progresso_geral(self, ano, trimestre):
+        """Calcula o progresso geral do time para um ano e trimestre específicos"""
+        try:
+            # Obtém todos os OKRs ativos do time no ano especificado
+            okrs = Objetivo.objects.filter(
+                time=self,
+                ano=ano,
+                ativo=True
+            ).prefetch_related('key_results', 'key_results__progressos')
+
+            if not okrs.exists():
+                return 0
+
+            total_progresso = 0
+            total_krs = 0
+
+            # Calcula o progresso de cada OKR
+            for okr in okrs:
+                # Filtra apenas os KRs ativos
+                for kr in okr.key_results.filter(ativo=True):
+                    # Filtra o progresso baseado no trimestre
+                    progresso = kr.progressos.filter(trimestre=trimestre).order_by('-data_atualizacao').first()
+                    
+                    if progresso:
+                        valor_atual = Decimal(str(progresso.valor_atual))
+                        valor_target = Decimal(str(kr.valor_target))
+                        
+                        if kr.tipo_valor == TipoValor.PORCENTAGEM:
+                            # Para porcentagem, usa o valor diretamente
+                            progresso_kr = float(valor_atual)
+                        else:
+                            # Para outros tipos, calcula a porcentagem em relação ao target
+                            progresso_kr = float((valor_atual / valor_target) * 100)
+                    else:
+                        # Se não houver progresso, considera 0%
+                        progresso_kr = 0
+
+                    total_progresso += progresso_kr
+                    total_krs += 1
+
+            # Calcula a média geral
+            return round(total_progresso / total_krs, 1) if total_krs > 0 else 0
+        except Exception as e:
+            logger.error(f"Erro ao calcular progresso geral do time {self.id}: {str(e)}")
+            return 0
 
 class Objetivo(models.Model):
     time = models.ForeignKey(Time, on_delete=models.CASCADE, related_name='objetivos', verbose_name='Time')
@@ -90,6 +180,12 @@ class KeyResultProgresso(models.Model):
     ]
     
     key_result = models.ForeignKey(KeyResult, on_delete=models.CASCADE, related_name='progressos', verbose_name='Key Result')
+    diretoria = models.ForeignKey(Diretoria, on_delete=models.CASCADE, verbose_name='Diretoria', null=True, blank=True)
+    data_progresso = models.DateField(
+        verbose_name='Data do Progresso',
+        help_text='Data em que o progresso foi registrado',
+        default=timezone.now
+    )
     trimestre = models.CharField(max_length=1, choices=TRIMESTRES, verbose_name='Trimestre')
     valor_atual = models.DecimalField(
         max_digits=15,
@@ -108,3 +204,21 @@ class KeyResultProgresso(models.Model):
 
     def __str__(self):
         return f"{self.key_result.descricao[:30]}... - {self.trimestre}º Trimestre"
+        
+    def save(self, *args, **kwargs):
+        if self.key_result and not self.diretoria:
+            self.diretoria = self.key_result.objetivo.time.diretoria
+        
+        # Calcula o trimestre baseado na data do progresso apenas para novos registros
+        if not self.pk and self.data_progresso:
+            mes = self.data_progresso.month
+            if mes <= 3:
+                self.trimestre = '1'
+            elif mes <= 6:
+                self.trimestre = '2'
+            elif mes <= 9:
+                self.trimestre = '3'
+            else:
+                self.trimestre = '4'
+        
+        super().save(*args, **kwargs)

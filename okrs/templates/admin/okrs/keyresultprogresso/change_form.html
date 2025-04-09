@@ -1,0 +1,73 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
+<script>
+$(document).ready(function() {
+    console.log('Documento carregado');
+    console.log('Elemento diretoria:', $('#id_diretoria').length);
+    console.log('Elemento key_result:', $('#id_key_result').length);
+    
+    // Função para carregar os Key Results baseado na diretoria selecionada
+    function loadKeyResults(diretoriaId) {
+        console.log('Carregando Key Results para diretoria:', diretoriaId);
+        
+        if (diretoriaId) {
+            $.ajax({
+                url: '/okrs/get_key_results/',
+                type: 'GET',
+                data: {
+                    'diretoria_id': diretoriaId
+                },
+                dataType: 'json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                beforeSend: function(xhr) {
+                    console.log('Enviando requisição AJAX');
+                },
+                success: function(data) {
+                    console.log('Dados recebidos:', data);
+                    var $keyResultSelect = $('#id_key_result');
+                    console.log('Elemento key_result encontrado:', $keyResultSelect.length);
+                    $keyResultSelect.empty();
+                    $keyResultSelect.append($('<option></option>').attr('value', '').text('---------'));
+                    $.each(data, function(index, item) {
+                        $keyResultSelect.append($('<option></option>').attr('value', item.id).text(item.text));
+                    });
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erro ao carregar Key Results:', error);
+                    console.error('Status:', status);
+                    console.error('Resposta:', xhr.responseText);
+                }
+            });
+        } else {
+            console.log('Nenhuma diretoria selecionada');
+            var $keyResultSelect = $('#id_key_result');
+            $keyResultSelect.empty();
+            $keyResultSelect.append($('<option></option>').attr('value', '').text('---------'));
+        }
+    }
+
+    // Evento quando a diretoria é alterada
+    $('#id_diretoria').on('change', function() {
+        console.log('Diretoria alterada:', $(this).val());
+        loadKeyResults($(this).val());
+    });
+
+    // Carrega os Key Results iniciais se houver uma diretoria selecionada
+    var diretoriaId = $('#id_diretoria').val();
+    console.log('Diretoria inicial:', diretoriaId);
+    if (diretoriaId) {
+        loadKeyResults(diretoriaId);
+    }
+});
+</script>
+{% endblock %}
+
+{% block field_sets %}
+{{ block.super }}
+{% endblock %} 

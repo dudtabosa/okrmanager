@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from okrs.models import Time, Objetivo, KeyResult, KeyResultProgresso
+from okrs.models import Time, Objetivo, KeyResult, KeyResultProgresso, Diretoria
 from django.db.models import Avg, Count
+from datetime import datetime
 
 @login_required
 def home(request):
@@ -57,4 +58,49 @@ def profile(request):
         'user': request.user,
         'times': Time.objects.filter(membros=request.user, ativo=True)
     }
-    return render(request, 'myapp/profile.html', context) 
+    return render(request, 'myapp/profile.html', context)
+
+def dashboard_geral(request):
+    # Obter parâmetros de filtro
+    ano = request.GET.get('ano', datetime.now().year)
+    trimestre = request.GET.get('trimestre', (datetime.now().month - 1) // 3 + 1)
+    
+    # Obter todas as diretorias
+    diretorias = Diretoria.objects.all()
+    
+    # Preparar dados para os gráficos
+    diretorias_nomes = []
+    diretorias_progresso = []
+    evolucao_trimestral = [0, 0, 0, 0]
+    
+    for diretoria in diretorias:
+        # Progresso por diretoria
+        diretorias_nomes.append(diretoria.nome)
+        progresso = diretoria.calcular_progresso_geral(ano, trimestre)
+        diretorias_progresso.append(progresso)
+        
+        # Evolução trimestral
+        for t in range(1, 5):
+            evolucao_trimestral[t-1] += diretoria.calcular_progresso_geral(ano, t)
+        
+        # Dados dos times por diretoria
+        times = Time.objects.filter(diretoria=diretoria)
+        diretoria.times_nomes = [time.nome for time in times]
+        diretoria.times_progresso = [time.calcular_progresso_geral(ano, trimestre) for time in times]
+        diretoria.progresso_atual = progresso
+        diretoria.total_okrs = Objetivo.objects.filter(time__diretoria=diretoria, ano=ano).count()
+    
+    # Calcular média da evolução trimestral
+    if diretorias:
+        evolucao_trimestral = [round(x / len(diretorias), 1) for x in evolucao_trimestral]
+    
+    context = {
+        'diretorias': diretorias,
+        'diretorias_nomes': diretorias_nomes,
+        'diretorias_progresso': diretorias_progresso,
+        'evolucao_trimestral': evolucao_trimestral,
+        'ano': ano,
+        'trimestre': trimestre
+    }
+    
+    return render(request, 'myapp/opah_okrs.html', context) 

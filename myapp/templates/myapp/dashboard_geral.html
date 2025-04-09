@@ -5,6 +5,32 @@
 
 {% block page_title %}Dashboard Geral{% endblock %}
 
+{% block extra_css %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .card-body canvas {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Filtros -->
@@ -13,23 +39,17 @@
             <div class="card">
                 <div class="card-body">
                     <form method="get" class="row g-3">
-                        <div class="col-md-4">
-                            <label for="ano" class="form-label">Ano</label>
-                            <select class="form-select" id="ano" name="ano">
-                                <option value="2024" selected>2024</option>
-                                <option value="2023">2023</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="trimestre" class="form-label">Trimestre</label>
+                        <div class="col-md-6">
+                            <label for="trimestre" class="form-label">Período</label>
                             <select class="form-select" id="trimestre" name="trimestre">
-                                <option value="1">1º Trimestre</option>
-                                <option value="2">2º Trimestre</option>
-                                <option value="3">3º Trimestre</option>
-                                <option value="4">4º Trimestre</option>
+                                <option value="ano" {% if trimestre == 'ano' %}selected{% endif %}>Ano</option>
+                                <option value="1" {% if trimestre == '1' %}selected{% endif %}>1º Trimestre</option>
+                                <option value="2" {% if trimestre == '2' %}selected{% endif %}>2º Trimestre</option>
+                                <option value="3" {% if trimestre == '3' %}selected{% endif %}>3º Trimestre</option>
+                                <option value="4" {% if trimestre == '4' %}selected{% endif %}>4º Trimestre</option>
                             </select>
                         </div>
-                        <div class="col-md-4 d-flex align-items-end">
+                        <div class="col-md-6 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
                         </div>
                     </form>
@@ -44,7 +64,9 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">Progresso Geral por Diretoria</h5>
-                    <canvas id="progressoDiretoriasChart"></canvas>
+                    <div class="chart-container">
+                        <canvas id="progressoDiretoriasChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -52,7 +74,9 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">Evolução Trimestral</h5>
-                    <canvas id="evolucaoTrimestralChart"></canvas>
+                    <div class="chart-container">
+                        <canvas id="evolucaoTrimestralChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -70,7 +94,7 @@
                             <div class="card bg-light">
                                 <div class="card-body text-center">
                                     <h6 class="card-subtitle mb-2 text-muted">Progresso Atual</h6>
-                                    <h2 class="card-title">{{ diretoria.progresso_atual }}%</h2>
+                                    <h2 class="card-title">{{ diretoria.progresso_atual|floatformat:1 }}%</h2>
                                 </div>
                             </div>
                         </div>
@@ -83,7 +107,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mt-3">
+                    <div class="chart-container mt-3">
                         <canvas id="diretoria{{ diretoria.id }}Chart"></canvas>
                     </div>
                 </div>
@@ -97,6 +121,18 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Paleta de cores para as diretorias
+    const coresDiretorias = [
+        '#FF6B00', // Laranja
+        '#0D6EFD', // Azul
+        '#198754', // Verde
+        '#DC3545', // Vermelho
+        '#6F42C1', // Roxo
+        '#20C997', // Verde água
+        '#FD7E14', // Laranja escuro
+        '#6610F2', // Índigo
+    ];
+
     // Configuração do gráfico de progresso por diretoria
     const progressoDiretoriasCtx = document.getElementById('progressoDiretoriasChart').getContext('2d');
     new Chart(progressoDiretoriasCtx, {
@@ -106,8 +142,8 @@
             datasets: [{
                 label: 'Progresso (%)',
                 data: {{ diretorias_progresso|safe }},
-                backgroundColor: '#ff6b00',
-                borderColor: '#ff6b00',
+                backgroundColor: coresDiretorias.slice(0, {{ diretorias_nomes|length }}),
+                borderColor: coresDiretorias.slice(0, {{ diretorias_nomes|length }}),
                 borderWidth: 1
             }]
         },
@@ -137,16 +173,17 @@
             datasets: [{
                 label: 'Meta',
                 data: [100, 100, 100, 100],
-                borderColor: '#ff6b00',
-                backgroundColor: '#ff6b00',
+                borderColor: '#6C757D',
+                backgroundColor: '#6C757D',
                 tension: 0.4,
-                fill: false
+                fill: false,
+                borderDash: [5, 5]
             },
             {
                 label: 'Resultado Atual',
                 data: {{ evolucao_trimestral|safe }},
-                borderColor: '#0d6efd',
-                backgroundColor: '#0d6efd',
+                borderColor: '#FF6B00',
+                backgroundColor: '#FF6B00',
                 tension: 0.4,
                 fill: false
             }]
@@ -178,8 +215,8 @@
             datasets: [{
                 label: 'Progresso (%)',
                 data: {{ diretoria.times_progresso|safe }},
-                backgroundColor: '#ff6b00',
-                borderColor: '#ff6b00',
+                backgroundColor: coresDiretorias[{{ forloop.counter0 }}],
+                borderColor: coresDiretorias[{{ forloop.counter0 }}],
                 borderWidth: 1
             }]
         },

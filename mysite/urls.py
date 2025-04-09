@@ -28,4 +28,5 @@ urlpatterns = [
     path('myapp/', include('myapp.urls')),
     path('admin/', admin.site.urls),
     path('register/', RegisterView.as_view(), name='register'),
+    path('okrs/', include('okrs.urls', namespace='okrs')),  # Incluindo as URLs do app okrs
 ]

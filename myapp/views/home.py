@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from okrs.models import Time, Objetivo, KeyResult, KeyResultProgresso, TipoValor
+from okrs.models import Time, Objetivo, KeyResult, KeyResultProgresso, TipoValor, Diretoria
 from django.db.models import Avg, Count
 from decimal import Decimal
 import logging
@@ -16,10 +16,23 @@ logger = logging.getLogger(__name__)
 def home(request):
     try:
         print("Iniciando home view")
+        print(f"Usuário: {request.user}")
         
         # Obtém os times do usuário
         times_usuario = Time.objects.filter(membros=request.user, ativo=True)
         print(f"Times do usuário: {list(times_usuario)}")
+        
+        if not times_usuario.exists():
+            print("Usuário não está em nenhum time ativo")
+            return render(request, 'myapp/home.html', {
+                'okrs': [],
+                'progresso_geral': 0,
+                'total_okrs': 0,
+                'total_times': 0,
+                'page_title': 'Meu Dashboard anual',
+                'labels': ['1º Trimestre', '2º Trimestre', '3º Trimestre', '4º Trimestre'],
+                'dados_progresso': [0, 0, 0, 0],
+            })
         
         # Obtém os OKRs dos times do usuário
         okrs = Objetivo.objects.filter(time__in=times_usuario, ativo=True).prefetch_related(
@@ -29,16 +42,33 @@ def home(request):
         ).order_by('-ano', 'time__nome')
 
         print(f"OKRs encontrados: {okrs.count()}")
+        if okrs.exists():
+            print(f"Primeiro OKR: {okrs.first().descricao}")
+            print(f"Time do primeiro OKR: {okrs.first().time.nome}")
+            print(f"KRs do primeiro OKR: {okrs.first().key_results.count()}")
 
         # Inicializa variáveis para cálculos
         total_progresso = 0
         total_krs = 0
         
         # Inicializa variáveis para o gráfico
-        medias_trimestrais = [0, 0, 0, 0]  # Médias para cada trimestre
-        total_krs_por_trimestre = [0, 0, 0, 0]  # Total de KRs por trimestre
+        evolucao_trimestral = [0, 0, 0, 0]
+        
+        # Obtém todas as diretorias
+        diretorias = Diretoria.objects.all()
+        print(f"Total de diretorias: {diretorias.count()}")
+        
+        # Calcula a evolução trimestral usando o mesmo método do dashboard_geral
+        for diretoria in diretorias:
+            for t in range(1, 5):
+                evolucao_trimestral[t-1] += diretoria.calcular_progresso_geral('2025', str(t))
+        
+        # Calcula a média da evolução trimestral
+        if diretorias:
+            evolucao_trimestral = [round(x / len(diretorias), 1) for x in evolucao_trimestral]
+            print(f"Evolução trimestral: {evolucao_trimestral}")
 
-        # Adiciona os valores atuais dos Key Results aos objetos
+        # Adiciona os valores atuais dos Key Results aos objetos do usuário
         for okr in okrs:
             print(f"\nProcessando OKR: {okr.descricao}")
             okr_progresso = 0
@@ -47,61 +77,43 @@ def home(request):
             for kr in okr.key_results.all():
                 print(f"\nKR: {kr.descricao}")
                 
-                # Calcula o progresso para cada trimestre (para o gráfico)
-                for trimestre in range(1, 5):
-                    # Obtém o progresso do trimestre
-                    progresso = kr.progressos.filter(trimestre=str(trimestre)).order_by('-data_atualizacao').first()
-                    
-                    if progresso:
-                        valor_atual = Decimal(str(progresso.valor_atual))
-                        valor_target = Decimal(str(kr.valor_target))
-                        
-                        # Calcula o progresso baseado no tipo de valor
-                        if kr.tipo_valor == TipoValor.PORCENTAGEM:
-                            progresso_valor = valor_atual
-                        else:
-                            progresso_valor = (valor_atual / valor_target) * 100
-                        
-                        # Acumula para a média do trimestre
-                        medias_trimestrais[trimestre-1] += float(progresso_valor)
-                        total_krs_por_trimestre[trimestre-1] += 1
-                
                 # Obtém o progresso mais recente para o cálculo geral (anual)
                 ultimo_progresso = kr.progressos.order_by('-data_atualizacao').first()
                 
                 if ultimo_progresso:
                     valor_atual = Decimal(str(ultimo_progresso.valor_atual))
-                    valor_target_trimestral = Decimal(str(kr.valor_target))
-                    valor_target_anual = valor_target_trimestral * 4  # Target anual é 4x o trimestral
-                    
-                    print(f"Valor atual: {valor_atual}, Target trimestral: {valor_target_trimestral}, Target anual: {valor_target_anual}")
+                    valor_target = Decimal(str(kr.valor_target))
                     
                     # Calcula o progresso baseado no tipo de valor
                     if kr.tipo_valor == TipoValor.PORCENTAGEM:
-                        progresso = valor_atual
+                        progresso_valor = valor_atual
                     else:
-                        progresso = (valor_atual / valor_target_anual) * 100
+                        progresso_valor = (valor_atual / valor_target) * 100
                     
-                    print(f"Progresso anual: {progresso}")
+                    # Formata o valor atual baseado no tipo
+                    if kr.tipo_valor == TipoValor.MOEDA:
+                        kr.valor_formatado = f"R$ {valor_atual:,.2f}"
+                    elif kr.tipo_valor == TipoValor.PORCENTAGEM:
+                        kr.valor_formatado = f"{valor_atual:.1f}%"
+                    else:
+                        kr.valor_formatado = f"{valor_atual:.1f}"
                     
-                    # Armazena o progresso no KR
-                    kr.progresso_atual = float(progresso)
-                    
-                    # Acumula para o cálculo do progresso geral do OKR
-                    okr_progresso += float(progresso)
-                    okr_total_krs += 1
-                    
-                    # Acumula para o cálculo do progresso geral total
-                    total_progresso += float(progresso)
-                    total_krs += 1
+                    # Atualiza o progresso do KR
+                    kr.progresso_atual = float(progresso_valor)
                     
                     # Define a cor do progresso
-                    if progresso < 50:
-                        kr.cor_progresso = 'bg-danger'  # Vermelho para abaixo de 50%
-                    elif progresso > 100:
-                        kr.cor_progresso = 'bg-orange'  # Laranja para acima de 100%
+                    if progresso_valor >= 100:
+                        kr.cor_progresso = 'bg-success'
+                    elif progresso_valor >= 50:
+                        kr.cor_progresso = 'bg-primary'
                     else:
-                        kr.cor_progresso = 'bg-primary'  # Azul para 100% ou abaixo
+                        kr.cor_progresso = 'bg-danger'
+                    
+                    # Acumula para o progresso geral
+                    okr_progresso += float(progresso_valor)
+                    okr_total_krs += 1
+                    total_progresso += float(progresso_valor)
+                    total_krs += 1
                 else:
                     print(f"KR sem progresso: {kr.descricao}")
                     kr.progresso_atual = 0
@@ -120,23 +132,23 @@ def home(request):
         # Calcula o progresso geral
         progresso_geral = total_progresso / total_krs if total_krs > 0 else 0
         print(f"\nProgresso geral: {progresso_geral} (total_progresso: {total_progresso}, total_krs: {total_krs})")
-        
-        # Calcula as médias trimestrais
-        for i in range(4):
-            if total_krs_por_trimestre[i] > 0:
-                medias_trimestrais[i] = medias_trimestrais[i] / total_krs_por_trimestre[i]
-            else:
-                medias_trimestrais[i] = 0
-            print(f"Média do {i+1}º trimestre: {medias_trimestrais[i]}%")
+
+        # Conta o total de KRs ativos
+        total_krs_ativos = KeyResult.objects.filter(
+            objetivo__time__in=times_usuario,
+            objetivo__ativo=True,
+            ativo=True
+        ).count()
+        print(f"Total de KRs ativos: {total_krs_ativos}")
 
         context = {
             'okrs': okrs,
             'progresso_geral': progresso_geral,
-            'total_okrs': okrs.count(),
+            'total_okrs': total_krs_ativos,
             'total_times': times_usuario.count(),
             'page_title': 'Meu Dashboard anual',
             'labels': ['1º Trimestre', '2º Trimestre', '3º Trimestre', '4º Trimestre'],
-            'dados_progresso': medias_trimestrais,
+            'dados_progresso': evolucao_trimestral,
         }
 
         print(f"\nContexto enviado para o template: {context}")

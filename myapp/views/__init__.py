@@ -1,3 +1,3 @@
-from .home import home, profile
-from .goals import all_goals, add_result
-from .opah_okrs import opah_okrs 
+from .home import home
+from .profile import profile
+from .goals import all_goals, add_result, dashboard_geral 
