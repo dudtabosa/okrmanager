@@ -1,0 +1,39 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    django.jQuery(document).ready(function($) {
+        // Função para atualizar os campos de descrição e fórmula
+        function atualizarDetalhesKPI() {
+            var kpiId = $('#id_kpi').val();
+            if (kpiId) {
+                $.ajax({
+                    url: '/okrs/api/kpi/' + kpiId + '/detalhes/',
+                    type: 'GET',
+                    success: function(data) {
+                        $('.field-kpi_descricao .readonly').html(data.descricao || '-');
+                        $('.field-kpi_formula .readonly').html(data.formula_calculo || '-');
+                    },
+                    error: function() {
+                        $('.field-kpi_descricao .readonly').html('-');
+                        $('.field-kpi_formula .readonly').html('-');
+                    }
+                });
+            } else {
+                $('.field-kpi_descricao .readonly').html('-');
+                $('.field-kpi_formula .readonly').html('-');
+            }
+        }
+
+        // Atualizar quando a página carrega
+        atualizarDetalhesKPI();
+
+        // Atualizar quando o KPI é alterado
+        $('#id_kpi').change(function() {
+            atualizarDetalhesKPI();
+        });
+    });
+</script>
+{% endblock %} 

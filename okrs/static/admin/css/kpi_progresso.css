@@ -1,0 +1,22 @@
+.field-kpi_descricao .readonly,
+.field-kpi_formula .readonly {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin: 5px 0;
+    white-space: pre-wrap;
+    font-family: "Roboto Mono", monospace;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.field-kpi_descricao .readonly {
+    font-style: italic;
+    color: #495057;
+}
+
+.field-kpi_formula .readonly {
+    font-weight: 500;
+    color: #2c3e50;
+} 

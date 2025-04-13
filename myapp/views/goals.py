@@ -1,13 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from okrs.models import Objetivo, KeyResultProgresso, Time, TipoValor, KeyResult, Diretoria
+from okrs.models import Objetivo, KeyResultProgresso, Time, TipoValor, KeyResult, Diretoria, KPI, KPIProgresso
 from decimal import Decimal
 import logging
 from django.contrib import messages
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.humanize.templatetags.humanize import intcomma
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Max, F, Q
 
 logger = logging.getLogger(__name__)
 
@@ -383,4 +383,42 @@ def dashboard_geral(request):
         'page_title': 'Dashboard Geral'
     }
     
-    return render(request, 'myapp/dashboard_geral.html', context) 
+    return render(request, 'myapp/dashboard_geral.html', context)
+
+@login_required
+def kpis(request):
+    # Busca KPIs que têm pelo menos um progresso registrado
+    kpis_com_progresso = KPI.objects.filter(
+        progressos__isnull=False
+    ).distinct().annotate(
+        ultimo_progresso=Max('progressos__data_medicao'),
+        valor_atual=F('progressos__valor_atual'),
+        data_medicao=F('progressos__data_medicao'),
+        observacoes=F('progressos__observacoes')
+    ).filter(
+        Q(progressos__data_medicao=F('ultimo_progresso'))
+    ).order_by('-relevancia', 'nome')
+
+    # Calcula o percentual de progresso para cada KPI
+    for kpi in kpis_com_progresso:
+        if kpi.tipo_valor == 'PORCENTAGEM':
+            kpi.percentual = float(kpi.valor_atual)
+        else:
+            valor_atual = Decimal(str(kpi.valor_atual))
+            valor_target = Decimal(str(kpi.valor_target))
+            kpi.percentual = float((valor_atual / valor_target) * 100)
+        
+        # Define a classe de cor baseada no percentual
+        if kpi.percentual >= 100:
+            kpi.cor_classe = 'success'
+        elif kpi.percentual >= 70:
+            kpi.cor_classe = 'warning'
+        else:
+            kpi.cor_classe = 'danger'
+
+    context = {
+        'kpis': kpis_com_progresso,
+        'page_title': 'KPIs'
+    }
+    
+    return render(request, 'myapp/kpis.html', context) 

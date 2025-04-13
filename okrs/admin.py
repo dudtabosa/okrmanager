@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Diretoria, Time, Objetivo, KeyResult, KeyResultProgresso, TipoValor
+from .models import Diretoria, Time, Objetivo, KeyResult, KeyResultProgresso, KPI, KPIProgresso, TipoValor
 from django import forms
 from django.core.exceptions import ValidationError
 
@@ -169,3 +169,67 @@ class KeyResultProgressoAdmin(admin.ModelAdmin):
         return obj.key_result.objetivo.time.diretoria.nome
     diretoria.short_description = 'Diretoria'
     diretoria.admin_order_field = 'key_result__objetivo__time__diretoria__nome'
+
+@admin.register(KPI)
+class KPIAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'relevancia', 'tipo_valor', 'valor_target', 'ativo')
+    list_filter = ('relevancia', 'tipo_valor', 'ativo')
+    search_fields = ('nome', 'descricao', 'formula_calculo')
+    ordering = ['-relevancia', 'nome']
+    fieldsets = (
+        ('Informações Básicas', {
+            'fields': ('nome', 'descricao', 'relevancia')
+        }),
+        ('Método de Cálculo', {
+            'fields': ('formula_calculo', 'tipo_valor', 'valor_target')
+        }),
+        ('Status', {
+            'fields': ('ativo',)
+        }),
+    )
+
+@admin.register(KPIProgresso)
+class KPIProgressoAdmin(admin.ModelAdmin):
+    list_display = ('kpi', 'valor_atual', 'data_medicao', 'data_atualizacao', 'atualizado_por')
+    list_filter = ('kpi__relevancia', 'data_medicao')
+    search_fields = ('kpi__nome', 'observacoes')
+    ordering = ['-data_medicao']
+    readonly_fields = ('data_atualizacao', 'atualizado_por', 'kpi_descricao', 'kpi_formula')
+    change_form_template = 'admin/okrs/kpiprogresso/change_form.html'
+    fieldsets = (
+        ('Informações do KPI', {
+            'fields': ('kpi', 'kpi_descricao', 'kpi_formula')
+        }),
+        ('Registro do Progresso', {
+            'fields': ('valor_atual', 'data_medicao')
+        }),
+        ('Observações', {
+            'fields': ('observacoes',)
+        }),
+        ('Informações do Sistema', {
+            'fields': ('data_atualizacao', 'atualizado_por'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def kpi_descricao(self, obj):
+        if obj and obj.kpi:
+            return obj.kpi.descricao
+        return "-"
+    kpi_descricao.short_description = "Descrição do KPI"
+
+    def kpi_formula(self, obj):
+        if obj and obj.kpi:
+            return obj.kpi.formula_calculo
+        return "-"
+    kpi_formula.short_description = "Fórmula de Cálculo"
+
+    def save_model(self, request, obj, form, change):
+        if not obj.atualizado_por:
+            obj.atualizado_por = request.user
+        super().save_model(request, obj, form, change)
+
+    class Media:
+        css = {
+            'all': ('admin/css/kpi_progresso.css',)
+        }

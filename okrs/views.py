@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from .models import KeyResult, Diretoria
+from .models import KeyResult, Diretoria, KPI
 import logging
 from django.views.decorators.http import require_GET
 from django.views.decorators.csrf import csrf_exempt
@@ -45,3 +45,14 @@ def get_key_results(request):
     except Exception as e:
         logger.error(f'Erro ao processar requisição: {str(e)}', exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_kpi_detalhes(request, kpi_id):
+    try:
+        kpi = KPI.objects.get(id=kpi_id)
+        return JsonResponse({
+            'descricao': kpi.descricao,
+            'formula_calculo': kpi.formula_calculo
+        })
+    except KPI.DoesNotExist:
+        return JsonResponse({}, status=404)

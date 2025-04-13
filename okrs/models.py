@@ -222,3 +222,70 @@ class KeyResultProgresso(models.Model):
                 self.trimestre = '4'
         
         super().save(*args, **kwargs)
+
+class KPI(models.Model):
+    RELEVANCIA_CHOICES = [
+        ('ALTA', 'Alta'),
+        ('MEDIA', 'Média'),
+        ('BAIXA', 'Baixa')
+    ]
+
+    nome = models.CharField(max_length=200, verbose_name='Nome do KPI')
+    descricao = models.TextField(verbose_name='Descrição')
+    formula_calculo = models.TextField(
+        verbose_name='Fórmula de Cálculo',
+        help_text='Descreva a fórmula ou método de cálculo deste KPI'
+    )
+    relevancia = models.CharField(
+        max_length=5,
+        choices=RELEVANCIA_CHOICES,
+        default='MEDIA',
+        verbose_name='Relevância'
+    )
+    tipo_valor = models.CharField(
+        max_length=20,
+        choices=[
+            ('NUMERO', 'Número'),
+            ('PORCENTAGEM', 'Porcentagem'),
+            ('MOEDA', 'Moeda')
+        ],
+        default='NUMERO',
+        verbose_name='Tipo de Valor'
+    )
+    valor_target = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        verbose_name='Valor Target'
+    )
+    data_criacao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data de Criação'
+    )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    class Meta:
+        verbose_name = 'KPI'
+        verbose_name_plural = 'KPIs'
+        ordering = ['-relevancia', 'nome']
+
+    def __str__(self):
+        return f"{self.nome} - Relevância: {self.get_relevancia_display()}"
+
+class KPIProgresso(models.Model):
+    kpi = models.ForeignKey(KPI, on_delete=models.CASCADE, related_name='progressos')
+    valor_atual = models.DecimalField(max_digits=10, decimal_places=2)
+    data_medicao = models.DateField()
+    observacoes = models.TextField(blank=True, null=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+    atualizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        verbose_name = 'Progresso do KPI'
+        verbose_name_plural = 'Progressos dos KPIs'
+        ordering = ['-data_medicao']
+
+    def __str__(self):
+        return f"{self.kpi.nome} - {self.data_medicao}"

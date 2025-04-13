@@ -1,0 +1,82 @@
+{% extends 'myapp/layouts/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Indicadores Chave de Performance (KPIs)</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for kpi in kpis %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-{{ kpi.cor_classe }} text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">{{ kpi.nome }}</h5>
+                                    <span class="badge bg-white text-{{ kpi.cor_classe }}">
+                                        {% if kpi.relevancia == 'ALTA' %}
+                                            <i class='bx bxs-hot'></i> Alta
+                                        {% elif kpi.relevancia == 'MEDIA' %}
+                                            <i class='bx bx-trending-up'></i> Média
+                                        {% else %}
+                                            <i class='bx bx-trending-down'></i> Baixa
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">{{ kpi.descricao }}</p>
+                                    <div class="row mt-3">
+                                        <div class="col-6">
+                                            <small class="text-muted">Valor Atual</small>
+                                            <h6>
+                                                {% if kpi.tipo_valor == 'MOEDA' %}
+                                                    R$ {{ kpi.valor_atual|floatformat:2|intcomma }}
+                                                {% elif kpi.tipo_valor == 'PORCENTAGEM' %}
+                                                    {{ kpi.valor_atual|floatformat:1 }}%
+                                                {% else %}
+                                                    {{ kpi.valor_atual|floatformat:0|intcomma }}
+                                                {% endif %}
+                                            </h6>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Meta</small>
+                                            <h6>
+                                                {% if kpi.tipo_valor == 'MOEDA' %}
+                                                    R$ {{ kpi.valor_target|floatformat:2|intcomma }}
+                                                {% elif kpi.tipo_valor == 'PORCENTAGEM' %}
+                                                    {{ kpi.valor_target|floatformat:1 }}%
+                                                {% else %}
+                                                    {{ kpi.valor_target|floatformat:0|intcomma }}
+                                                {% endif %}
+                                            </h6>
+                                        </div>
+                                    </div>
+                                    {% if kpi.observacoes %}
+                                    <div class="mt-3">
+                                        <small class="text-muted">Observações:</small>
+                                        <p class="mb-0 small text-muted">{{ kpi.observacoes }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer text-muted">
+                                    <small>Última atualização: {{ kpi.data_medicao|date:"d/m/Y" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                Nenhum KPI com progresso registrado foi encontrado.
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

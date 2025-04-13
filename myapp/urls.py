@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
-from .views import home, profile, all_goals, add_result, dashboard_geral
+from .views import home, profile, all_goals, add_result, dashboard_geral, goals
 from .views.goals import kr_history
 
 app_name = 'myapp'
@@ -15,4 +15,5 @@ urlpatterns = [
     path('all-goals/', all_goals, name='all_goals'),
     path('add-result/<int:okr_id>/', add_result, name='add_result'),
     path('goals/kr/<int:kr_id>/history/', kr_history, name='kr_history'),
+    path('kpis/', goals.kpis, name='kpis'),
 ]
