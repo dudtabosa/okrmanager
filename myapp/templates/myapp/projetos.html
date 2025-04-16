@@ -1,0 +1,328 @@
+{% extends 'myapp/layouts/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Projetos - OPAH OKR Manager{% endblock %}
+
+{% block styles %}
+<style>
+    /* TESTE DE ATUALIZAÇÃO - REMOVER DEPOIS */
+    body:before {
+        content: "Template atualizado às {{ now }}";
+        display: block;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: red;
+        color: white;
+        padding: 5px 10px;
+        z-index: 9999;
+        font-size: 12px;
+    }
+    
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border: none;
+        border-radius: 0.8rem !important;
+        height: 100%;
+        overflow: hidden;
+        background-color: #fff;
+        margin-bottom: 15px;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+    }
+    .card-header {
+        border-bottom: none;
+        padding: 1rem 1.25rem;
+        border-top-left-radius: 0.8rem !important;
+        border-top-right-radius: 0.8rem !important;
+    }
+    .card-body {
+        padding: 1.25rem;
+    }
+    .card-footer {
+        background-color: #f8f9fa;
+        border-top: 1px solid rgba(0,0,0,.08);
+        padding: 0.75rem 1.25rem;
+        color: #6c757d;
+        font-size: 0.8rem;
+        border-bottom-left-radius: 0.8rem !important;
+        border-bottom-right-radius: 0.8rem !important;
+    }
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+    
+    .status-badge-header {
+        padding: 0.3rem 0.8rem;
+        border-radius: 50rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        background-color: rgba(255, 255, 255, 0.9);
+        color: #343a40;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .project-description {
+        font-size: 0.95rem;
+        color: #495057;
+        margin-bottom: 1.5rem;
+    }
+    .metric-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+    .metric-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .details-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(0,0,0,.1);
+    }
+    .details-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #495057;
+        margin-bottom: 0.3rem;
+    }
+    .details-text {
+        font-size: 0.9rem;
+        color: #5a6268;
+        margin-bottom: 1rem;
+        line-height: 1.6;
+    }
+    .diretoria-heading {
+        margin: 1.5rem 0 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 2px solid #dee2e6;
+        color: #343a40;
+        font-weight: 700;
+        font-size: 1.3rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .diretoria-heading:first-of-type {
+        margin-top: 0;
+    }
+    .diretoria-section {
+        margin-bottom: 2.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eaeaea;
+    }
+    .diretoria-section:last-of-type {
+        margin-bottom: 0;
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if projetos_por_diretoria %}
+        {% for diretoria, projetos in projetos_por_diretoria.items %}
+            <div class="diretoria-section">
+                <h3 class="diretoria-heading">{{ diretoria }}</h3>
+                <div class="row">
+                    {% for item in projetos %}
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card">
+                            {% if item.status == 'CRITICO' %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #800080; color: white;">
+                            {% elif item.status == 'ATRASADO' %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #dc3545; color: white;">
+                            {% elif item.status == 'EM_DIA' %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #007bff; color: white;">
+                            {% elif item.status == 'ATENCAO' %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #ffc107; color: #343a40;">
+                            {% elif item.status == 'CONCLUIDO' or item.status == 'ENTREGUE' %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #28a745; color: white;">
+                            {% else %}
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #6c757d; color: white;">
+                            {% endif %}
+                                <h5 class="card-title mb-0">{{ item.projeto.nome }} - {{ item.projeto.cliente }}</h5>
+                                <span class="status-badge-header">
+                                    {% if item.status == 'CRITICO' %}
+                                        Crítico
+                                    {% elif item.status == 'ATRASADO' %}
+                                        Atrasado
+                                    {% elif item.status == 'EM_DIA' %}
+                                        Em dia
+                                    {% elif item.status == 'ATENCAO' %}
+                                        Atenção
+                                    {% elif item.status == 'PAUSADO' %}
+                                        Pausado
+                                    {% elif item.status == 'CONCLUIDO' %}
+                                        Concluído
+                                    {% elif item.status == 'ENTREGUE' %}
+                                        Entregue
+                                    {% else %}
+                                        Sem Status
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="project-description">
+                                    {{ item.projeto.diretoria }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-6 mb-4">
+                                        <div class="metric-label">Custo Planejado</div>
+                                        <div class="metric-value">R$ {{ item.projeto.custo_planejado|floatformat:2|intcomma }}</div>
+                                    </div>
+                                    <div class="col-6 mb-4">
+                                        <div class="metric-label">Receita Planejada</div>
+                                        <div class="metric-value">R$ {{ item.projeto.receita_planejada|floatformat:2|intcomma }}</div>
+                                    </div>
+                                    {% if item.progresso %}
+                                    <div class="col-6 mb-4">
+                                        <div class="metric-label">Custo Realizado</div>
+                                        <div class="metric-value">R$ {{ item.progresso.custo_realizado|floatformat:2|intcomma }}</div>
+                                    </div>
+                                    <div class="col-6 mb-4">
+                                        <div class="metric-label">Receita Realizada</div>
+                                        <div class="metric-value">R$ {{ item.progresso.receita_realizada|floatformat:2|intcomma }}</div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if item.progresso %}
+                                    {% if item.progresso.plano_acao or item.progresso.observacoes %}
+                                    <div class="details-section">
+                                        {% if item.progresso.plano_acao %}
+                                            <div class="details-label">Plano de Ação:</div>
+                                            <p class="details-text">{{ item.progresso.plano_acao|linebreaksbr }}</p>
+                                        {% endif %}
+                                        {% if item.progresso.observacoes %}
+                                            <div class="details-label">Observações:</div>
+                                            <p class="details-text mb-0">{{ item.progresso.observacoes|linebreaksbr }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            {% if item.ultima_atualizacao %}
+                            <div class="card-footer">
+                                Última atualização: {{ item.ultima_atualizacao|date:"d/m/Y" }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% elif projetos %}
+        <div class="row">
+            {% for item in projetos %}
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card">
+                    {% if item.status == 'CRITICO' %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #800080; color: white;">
+                    {% elif item.status == 'ATRASADO' %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #dc3545; color: white;">
+                    {% elif item.status == 'EM_DIA' %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #007bff; color: white;">
+                    {% elif item.status == 'ATENCAO' %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #ffc107; color: #343a40;">
+                    {% elif item.status == 'CONCLUIDO' or item.status == 'ENTREGUE' %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #28a745; color: white;">
+                    {% else %}
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #6c757d; color: white;">
+                    {% endif %}
+                        <h5 class="card-title mb-0">{{ item.projeto.nome }} - {{ item.projeto.cliente }}</h5>
+                        <span class="status-badge-header">
+                            {% if item.status == 'CRITICO' %}
+                                Crítico
+                            {% elif item.status == 'ATRASADO' %}
+                                Atrasado
+                            {% elif item.status == 'EM_DIA' %}
+                                Em dia
+                            {% elif item.status == 'ATENCAO' %}
+                                Atenção
+                            {% elif item.status == 'PAUSADO' %}
+                                Pausado
+                            {% elif item.status == 'CONCLUIDO' %}
+                                Concluído
+                            {% elif item.status == 'ENTREGUE' %}
+                                Entregue
+                            {% else %}
+                                Sem Status
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="project-description">
+                            {{ item.projeto.diretoria }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <div class="metric-label">Custo Planejado</div>
+                                <div class="metric-value">R$ {{ item.projeto.custo_planejado|floatformat:2|intcomma }}</div>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <div class="metric-label">Receita Planejada</div>
+                                <div class="metric-value">R$ {{ item.projeto.receita_planejada|floatformat:2|intcomma }}</div>
+                            </div>
+                            {% if item.progresso %}
+                            <div class="col-6 mb-4">
+                                <div class="metric-label">Custo Realizado</div>
+                                <div class="metric-value">R$ {{ item.progresso.custo_realizado|floatformat:2|intcomma }}</div>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <div class="metric-label">Receita Realizada</div>
+                                <div class="metric-value">R$ {{ item.progresso.receita_realizada|floatformat:2|intcomma }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if item.progresso %}
+                            {% if item.progresso.plano_acao or item.progresso.observacoes %}
+                            <div class="details-section">
+                                {% if item.progresso.plano_acao %}
+                                    <div class="details-label">Plano de Ação:</div>
+                                    <p class="details-text">{{ item.progresso.plano_acao|linebreaksbr }}</p>
+                                {% endif %}
+                                {% if item.progresso.observacoes %}
+                                    <div class="details-label">Observações:</div>
+                                    <p class="details-text mb-0">{{ item.progresso.observacoes|linebreaksbr }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% if item.ultima_atualizacao %}
+                    <div class="card-footer">
+                        Última atualização: {{ item.ultima_atualizacao|date:"d/m/Y" }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                Nenhum projeto encontrado.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 
