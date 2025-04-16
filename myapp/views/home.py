@@ -47,18 +47,12 @@ def home(request):
             print(f"Time do primeiro OKR: {okrs.first().time.nome}")
             print(f"KRs do primeiro OKR: {okrs.first().key_results.count()}")
 
-        # Inicializa variáveis para cálculos
-        total_progresso = 0
-        total_krs = 0
-        
-        # Inicializa variáveis para o gráfico
-        evolucao_trimestral = [0, 0, 0, 0]
-        
         # Obtém todas as diretorias
         diretorias = Diretoria.objects.all()
         print(f"Total de diretorias: {diretorias.count()}")
         
         # Calcula a evolução trimestral usando o mesmo método do dashboard_geral
+        evolucao_trimestral = [0, 0, 0, 0]
         for diretoria in diretorias:
             for t in range(1, 5):
                 evolucao_trimestral[t-1] += diretoria.calcular_progresso_geral('2025', str(t))
@@ -68,7 +62,11 @@ def home(request):
             evolucao_trimestral = [round(x / len(diretorias), 1) for x in evolucao_trimestral]
             print(f"Evolução trimestral: {evolucao_trimestral}")
 
-        # Adiciona os valores atuais dos Key Results aos objetos do usuário
+        # Calcula o progresso geral como média dos trimestres
+        progresso_geral = sum(evolucao_trimestral) / 4 if evolucao_trimestral else 0
+        print(f"Progresso geral (média dos trimestres): {progresso_geral}")
+
+        # Processa os OKRs para exibição
         for okr in okrs:
             print(f"\nProcessando OKR: {okr.descricao}")
             okr_progresso = 0
@@ -77,7 +75,7 @@ def home(request):
             for kr in okr.key_results.all():
                 print(f"\nKR: {kr.descricao}")
                 
-                # Obtém o progresso mais recente para o cálculo geral (anual)
+                # Obtém o progresso mais recente
                 ultimo_progresso = kr.progressos.order_by('-data_atualizacao').first()
                 
                 if ultimo_progresso:
@@ -109,29 +107,22 @@ def home(request):
                     else:
                         kr.cor_progresso = 'bg-danger'
                     
-                    # Acumula para o progresso geral
+                    # Acumula para o progresso do OKR
                     okr_progresso += float(progresso_valor)
                     okr_total_krs += 1
-                    total_progresso += float(progresso_valor)
-                    total_krs += 1
                 else:
                     print(f"KR sem progresso: {kr.descricao}")
                     kr.progresso_atual = 0
                     kr.cor_progresso = 'bg-secondary'
                     okr_total_krs += 1
-                    total_krs += 1
             
             # Calcula o progresso geral do OKR
             if okr_total_krs > 0:
                 okr.progresso_geral = okr_progresso / okr_total_krs
-                print(f"Progresso geral do OKR: {okr.progresso_geral} (okr_progresso: {okr_progresso}, okr_total_krs: {okr_total_krs})")
+                print(f"Progresso geral do OKR: {okr.progresso_geral}")
             else:
                 okr.progresso_geral = 0
                 print("OKR sem KRs com progresso")
-
-        # Calcula o progresso geral
-        progresso_geral = total_progresso / total_krs if total_krs > 0 else 0
-        print(f"\nProgresso geral: {progresso_geral} (total_progresso: {total_progresso}, total_krs: {total_krs})")
 
         # Conta o total de KRs ativos
         total_krs_ativos = KeyResult.objects.filter(
@@ -143,7 +134,7 @@ def home(request):
 
         context = {
             'okrs': okrs,
-            'progresso_geral': progresso_geral,
+            'progresso_geral': round(progresso_geral, 1),
             'total_okrs': total_krs_ativos,
             'total_times': times_usuario.count(),
             'page_title': 'Meu Dashboard anual',
