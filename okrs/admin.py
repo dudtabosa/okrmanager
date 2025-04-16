@@ -239,7 +239,7 @@ class KPIProgressoAdmin(admin.ModelAdmin):
 
 @admin.register(Projeto)
 class ProjetoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'cliente', 'diretoria', 'data_inicio', 'data_fim', 'ativo')
+    list_display = ('nome', 'cliente', 'diretoria', 'data_inicio', 'data_fim', 'custo_planejado', 'receita_planejada', 'ativo')
     list_filter = ('diretoria', 'ativo', 'cliente')
     search_fields = ('nome', 'descricao', 'cliente')
     date_hierarchy = 'data_inicio'
@@ -268,15 +268,14 @@ class ProjetoProgressoAdmin(admin.ModelAdmin):
     change_form_template = 'admin/okrs/projetoprogresso/change_form.html'
     
     fieldsets = (
-        ('Informações Básicas', {
-            'fields': ('diretoria', 'projeto', 'data', 'farol')
+        ('Informações do Projeto', {
+            'fields': ('projeto', 'data')
         }),
-        ('Financeiro', {
-            'fields': ('custo_realizado', 'receita_realizada')
+        ('Progresso', {
+            'fields': ('farol', 'custo_realizado', 'receita_realizada')
         }),
         ('Plano de Ação', {
-            'fields': ('plano_acao',),
-            'description': 'Obrigatório quando o farol está crítico, atrasado ou em atenção, ou quando o custo realizado excede o planejado'
+            'fields': ('plano_acao',)
         }),
         ('Observações', {
             'fields': ('observacoes',)
@@ -284,53 +283,23 @@ class ProjetoProgressoAdmin(admin.ModelAdmin):
     )
 
     def get_readonly_fields(self, request, obj=None):
-        if obj:
-            return ['data_atualizacao', 'atualizado_por']
-        return []
+        if obj:  # Se estiver editando um objeto existente
+            return ('data_atualizacao', 'atualizado_por')
+        return ()
 
     def save_model(self, request, obj, form, change):
-        try:
-            if not obj.atualizado_por:
-                obj.atualizado_por = request.user
-            
-            # Garantir que o projeto seja salvo corretamente
-            projeto_id = request.POST.get('projeto')
-            if projeto_id:
-                obj.projeto_id = projeto_id
-                
-                # Atualizar a diretoria baseado no projeto
-                projeto = Projeto.objects.get(id=projeto_id)
-                obj.diretoria_id = projeto.diretoria_id
-            
-            super().save_model(request, obj, form, change)
-        except Exception as e:
-            self.message_user(request, f"Erro ao salvar: {str(e)}", level='ERROR')
+        if not change:  # Se for um novo objeto
+            obj.atualizado_por = request.user
+        super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Apenas para novos registros
-            form.base_fields['diretoria'].queryset = Diretoria.objects.filter(ativo=True)
-            form.base_fields['projeto'].queryset = Projeto.objects.filter(ativo=True)
-            form.base_fields['projeto'].required = True
-            
-            # Se houver diretoria selecionada, filtrar projetos
-            diretoria_id = request.GET.get('diretoria_id')
-            if diretoria_id:
-                form.base_fields['projeto'].queryset = Projeto.objects.filter(
-                    diretoria_id=diretoria_id,
-                    ativo=True
-                )
+        form.base_fields['projeto'].queryset = Projeto.objects.filter(ativo=True)
         return form
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
-        
-        # Manter os valores do POST no formulário
-        if request.method == 'POST':
-            for key in ['projeto', 'diretoria']:
-                if key in request.POST:
-                    initial[key] = request.POST[key]
-        
+        initial['atualizado_por'] = request.user.id
         return initial
 
     class Media:
