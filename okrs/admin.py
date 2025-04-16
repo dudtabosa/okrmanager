@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Diretoria, Time, Objetivo, KeyResult, KeyResultProgresso, KPI, KPIProgresso, TipoValor
+from .models import (
+    TipoValor, Diretoria, Time, Objetivo, KeyResult, KeyResultProgresso,
+    KPI, KPIProgresso, Projeto, ProjetoProgresso
+)
 from django import forms
 from django.core.exceptions import ValidationError
 
@@ -233,3 +236,102 @@ class KPIProgressoAdmin(admin.ModelAdmin):
         css = {
             'all': ('admin/css/kpi_progresso.css',)
         }
+
+@admin.register(Projeto)
+class ProjetoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'cliente', 'diretoria', 'data_inicio', 'data_fim', 'ativo')
+    list_filter = ('diretoria', 'ativo', 'cliente')
+    search_fields = ('nome', 'descricao', 'cliente')
+    date_hierarchy = 'data_inicio'
+    
+    fieldsets = (
+        ('Informações Básicas', {
+            'fields': ('nome', 'cliente', 'descricao', 'diretoria')
+        }),
+        ('Datas', {
+            'fields': ('data_inicio', 'data_fim')
+        }),
+        ('Financeiro', {
+            'fields': ('custo_planejado', 'receita_planejada')
+        }),
+        ('Status', {
+            'fields': ('ativo',)
+        }),
+    )
+
+@admin.register(ProjetoProgresso)
+class ProjetoProgressoAdmin(admin.ModelAdmin):
+    list_display = ('projeto', 'data', 'farol', 'custo_realizado', 'receita_realizada')
+    list_filter = ('projeto__diretoria', 'farol', 'data')
+    search_fields = ('projeto__nome', 'observacoes', 'plano_acao')
+    date_hierarchy = 'data'
+    change_form_template = 'admin/okrs/projetoprogresso/change_form.html'
+    
+    fieldsets = (
+        ('Informações Básicas', {
+            'fields': ('diretoria', 'projeto', 'data', 'farol')
+        }),
+        ('Financeiro', {
+            'fields': ('custo_realizado', 'receita_realizada')
+        }),
+        ('Plano de Ação', {
+            'fields': ('plano_acao',),
+            'description': 'Obrigatório quando o farol está crítico, atrasado ou em atenção, ou quando o custo realizado excede o planejado'
+        }),
+        ('Observações', {
+            'fields': ('observacoes',)
+        }),
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ['data_atualizacao', 'atualizado_por']
+        return []
+
+    def save_model(self, request, obj, form, change):
+        try:
+            if not obj.atualizado_por:
+                obj.atualizado_por = request.user
+            
+            # Garantir que o projeto seja salvo corretamente
+            projeto_id = request.POST.get('projeto')
+            if projeto_id:
+                obj.projeto_id = projeto_id
+                
+                # Atualizar a diretoria baseado no projeto
+                projeto = Projeto.objects.get(id=projeto_id)
+                obj.diretoria_id = projeto.diretoria_id
+            
+            super().save_model(request, obj, form, change)
+        except Exception as e:
+            self.message_user(request, f"Erro ao salvar: {str(e)}", level='ERROR')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if not obj:  # Apenas para novos registros
+            form.base_fields['diretoria'].queryset = Diretoria.objects.filter(ativo=True)
+            form.base_fields['projeto'].queryset = Projeto.objects.filter(ativo=True)
+            form.base_fields['projeto'].required = True
+            
+            # Se houver diretoria selecionada, filtrar projetos
+            diretoria_id = request.GET.get('diretoria_id')
+            if diretoria_id:
+                form.base_fields['projeto'].queryset = Projeto.objects.filter(
+                    diretoria_id=diretoria_id,
+                    ativo=True
+                )
+        return form
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        
+        # Manter os valores do POST no formulário
+        if request.method == 'POST':
+            for key in ['projeto', 'diretoria']:
+                if key in request.POST:
+                    initial[key] = request.POST[key]
+        
+        return initial
+
+    class Media:
+        js = ('admin/js/jquery.init.js',)

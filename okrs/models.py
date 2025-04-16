@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 import logging
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 # Create your models here.
 
@@ -289,3 +290,99 @@ class KPIProgresso(models.Model):
 
     def __str__(self):
         return f"{self.kpi.nome} - {self.data_medicao}"
+
+class Projeto(models.Model):
+    nome = models.CharField(max_length=200, verbose_name='Nome do Projeto')
+    descricao = models.TextField(verbose_name='Descrição')
+    cliente = models.CharField(max_length=200, verbose_name='Cliente', blank=True, null=True)
+    diretoria = models.ForeignKey(Diretoria, on_delete=models.CASCADE, related_name='projetos', verbose_name='Diretoria Responsável')
+    data_inicio = models.DateField(verbose_name='Data de Início')
+    data_fim = models.DateField(verbose_name='Data de Término')
+    custo_planejado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        verbose_name='Custo Planejado',
+        help_text='Custo total planejado para o projeto'
+    )
+    receita_planejada = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        verbose_name='Receita Planejada',
+        help_text='Receita total planejada para o projeto'
+    )
+    data_criacao = models.DateTimeField(auto_now_add=True, verbose_name='Data de Criação')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    class Meta:
+        verbose_name = 'Projeto'
+        verbose_name_plural = 'Projetos'
+        ordering = ['-data_criacao']
+
+    def __str__(self):
+        return f"{self.nome} - {self.diretoria.nome}"
+
+class ProjetoProgresso(models.Model):
+    FAROL_CHOICES = [
+        ('CRITICO', 'Crítico'),
+        ('ATRASADO', 'Atrasado'),
+        ('EM_DIA', 'Em Dia'),
+        ('ATENCAO', 'Atenção'),
+        ('PAUSADO', 'Pausado'),
+        ('CONCLUIDO', 'Concluído'),
+        ('ENTREGUE', 'Entregue')
+    ]
+
+    projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='progressos', verbose_name='Projeto', null=False, blank=False)
+    diretoria = models.ForeignKey(Diretoria, on_delete=models.CASCADE, verbose_name='Diretoria')
+    data = models.DateField(verbose_name='Data do Progresso', default=timezone.now)
+    custo_realizado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        verbose_name='Custo Realizado',
+        help_text='Custo realizado até a data'
+    )
+    receita_realizada = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        verbose_name='Receita Realizada',
+        help_text='Receita realizada até a data'
+    )
+    farol = models.CharField(
+        max_length=10,
+        choices=FAROL_CHOICES,
+        verbose_name='Status do Projeto'
+    )
+    plano_acao = models.TextField(
+        verbose_name='Plano de Ação',
+        blank=True,
+        null=True,
+        help_text='Plano de ação necessário quando o farol está crítico, atrasado ou em atenção, ou quando o custo realizado excede o planejado'
+    )
+    observacoes = models.TextField(verbose_name='Observações', blank=True, null=True)
+    data_atualizacao = models.DateTimeField(auto_now=True, verbose_name='Data de Atualização')
+    atualizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name='Atualizado por')
+
+    class Meta:
+        verbose_name = 'Progresso do Projeto'
+        verbose_name_plural = 'Progressos dos Projetos'
+        ordering = ['-data']
+
+    def __str__(self):
+        return f"{self.projeto.nome} - {self.data.strftime('%d/%m/%Y')}"
+
+    def clean(self):
+        super().clean()
+        if not self.projeto_id:
+            raise ValidationError('É necessário selecionar um projeto.')
+        
+        try:
+            projeto = Projeto.objects.get(id=self.projeto_id)
+            if self.farol in ['CRITICO', 'ATRASADO', 'ATENCAO'] or self.custo_realizado > projeto.custo_planejado:
+                if not self.plano_acao:
+                    raise ValidationError('É necessário preencher o Plano de Ação quando o farol está crítico, atrasado ou em atenção, ou quando o custo realizado excede o planejado.')
+            
+            # Garantir que a diretoria do progresso seja a mesma do projeto
+            if projeto and self.diretoria_id != projeto.diretoria_id:
+                self.diretoria_id = projeto.diretoria_id
+        except Projeto.DoesNotExist:
+            raise ValidationError('Projeto selecionado não existe.')
